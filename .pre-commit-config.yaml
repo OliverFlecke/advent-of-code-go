@@ -1,3 +1,5 @@
+ci:
+    skip: [go-build-mod, go-mod-tidy, go-imports]
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v3.2.0
