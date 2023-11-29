@@ -7,8 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 var jar, _ = cookiejar.New(nil)
@@ -24,7 +27,7 @@ func GetInput(year Year, day Day) string {
 	var filename = filepath.Join(directory, fmt.Sprintf("%d.txt", day))
 
 	if _, err := os.Stat(filename); err == nil {
-		log.Println("Reading file")
+		// log.Println("Reading file")
 		var input, err = os.ReadFile(filename)
 		if err != nil {
 			log.Fatal(err)
@@ -46,6 +49,50 @@ func GetInput(year Year, day Day) string {
 	panic(nil)
 }
 
+// Submit an answer for a problem.
+func SubmitAnswer(year Year, day Day, level Level, answer string) SubmissionResult {
+	answerUrl := fmt.Sprintf("%s/answer", baseUrl(year, day))
+
+	form := url.Values{}
+	form.Add("level", string(level))
+	form.Add("answer", answer)
+	request, _ := http.NewRequest(http.MethodPost, answerUrl, strings.NewReader(form.Encode()))
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	authenticate(request)
+
+	response, err := client.Do(request)
+	if err != nil {
+		panic(err)
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+	return parseSubmissionResponse(string(body))
+}
+
+func parseSubmissionResponse(body string) SubmissionResult {
+	r, _ := regexp.Compile("(?s)<main>.*</main>")
+	main := r.FindString(body)
+
+	if strings.Contains(body, "That's the right anwswer") {
+		return Correct
+	}
+	if strings.Contains(body, "already complete it") {
+		return AlreadyCompleted
+	}
+	if strings.Contains(body, "answer too recently") {
+		return TooRecent
+	}
+	if strings.Contains(body, "not the right answer") {
+		fmt.Printf(main)
+		return Incorrect
+	}
+
+	fmt.Printf(body)
+	panic("Could not parse body")
+}
+
 // Location to cache input in.
 func cacheLocation(year Year) string {
 	return fmt.Sprintf(".input/%d/", year)
@@ -53,17 +100,12 @@ func cacheLocation(year Year) string {
 
 // Fetch the input for a problem, given a year and day.
 func fetchInput(year Year, day Day) string {
-	var token, has_token = os.LookupEnv(AOC_TOKEN_NAME)
-	if !has_token {
-		log.Panicf("Missing `%s` in environment", AOC_TOKEN_NAME)
-	}
-
 	var url = fmt.Sprintf("%s/input", baseUrl(year, day))
 	var request, err = http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Fatalf("Failed to create request %s", err)
 	}
-	request.AddCookie(&http.Cookie{Name: "session", Value: token})
+	authenticate(request)
 
 	var response, _ = client.Do(request)
 	defer response.Body.Close()
@@ -71,6 +113,15 @@ func fetchInput(year Year, day Day) string {
 	var body, _ = io.ReadAll(response.Body)
 
 	return string(body)
+}
+
+func authenticate(request *http.Request) {
+	var token, has_token = os.LookupEnv(AOC_TOKEN_NAME)
+	if !has_token {
+		log.Panicf("Missing `%s` in environment", AOC_TOKEN_NAME)
+	}
+
+	request.AddCookie(&http.Cookie{Name: "session", Value: token})
 }
 
 // Create the base URL for a problem.

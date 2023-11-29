@@ -1,9 +1,16 @@
 package aoc
 
+type Level uint8
+
+const (
+	A = iota + 1
+	B
+)
+
 type Year uint16
 
 const (
-	Y2017 = iota + 2017
+	Y2017 Year = iota + 2017
 	Y2018
 	Y2019
 	Y2020
@@ -15,7 +22,7 @@ const (
 type Day uint8
 
 const (
-	Day01 = iota + 1
+	Day01 Day = iota + 1
 	Day02
 	Day03
 	Day04
@@ -40,4 +47,13 @@ const (
 	Day23
 	Day24
 	Day25
+)
+
+type SubmissionResult uint8
+
+const (
+	Correct SubmissionResult = iota
+	AlreadyCompleted
+	Incorrect
+	TooRecent
 )
