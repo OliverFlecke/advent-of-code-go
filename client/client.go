@@ -1,12 +1,14 @@
 package aoc
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"os"
+	"path/filepath"
 )
 
 var jar, _ = cookiejar.New(nil)
@@ -18,7 +20,35 @@ const AOC_TOKEN_NAME = "AOC_TOKEN"
 
 // Get the input for a given year and day.
 func GetInput(year Year, day Day) string {
-	return fetchInput(year, day)
+	var directory = cacheLocation(year)
+	var filename = filepath.Join(directory, fmt.Sprintf("%d.txt", day))
+
+	if _, err := os.Stat(filename); err == nil {
+		log.Println("Reading file")
+		var input, err = os.ReadFile(filename)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		return string(input)
+	} else if errors.Is(err, os.ErrNotExist) {
+		var input = fetchInput(year, day)
+		os.MkdirAll(directory, os.ModePerm)
+		if err := os.WriteFile(filename, []byte(input), 0666); err != nil {
+			log.Fatalf("Failed to write file: %s", err)
+		}
+
+		return input
+	} else {
+		log.Fatal(err)
+	}
+
+	panic(nil)
+}
+
+// Location to cache input in.
+func cacheLocation(year Year) string {
+	return fmt.Sprintf(".input/%d/", year)
 }
 
 // Fetch the input for a problem, given a year and day.
@@ -38,7 +68,6 @@ func fetchInput(year Year, day Day) string {
 	var response, _ = client.Do(request)
 	defer response.Body.Close()
 
-	fmt.Println(response.StatusCode)
 	var body, _ = io.ReadAll(response.Body)
 
 	return string(body)
