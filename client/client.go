@@ -16,7 +16,8 @@ import (
 
 var jar, _ = cookiejar.New(nil)
 var client = http.Client{
-	Jar: jar,
+	Jar:       jar,
+	Transport: newAddHeaderTransport(nil),
 }
 
 const AOC_TOKEN_NAME = "AOC_TOKEN"
@@ -58,7 +59,6 @@ func SubmitAnswer(year Year, day Day, level Level, answer string) SubmissionResu
 	form.Add("answer", answer)
 	request, _ := http.NewRequest(http.MethodPost, answerUrl, strings.NewReader(form.Encode()))
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	authenticate(request)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -100,12 +100,12 @@ func cacheLocation(year Year) string {
 
 // Fetch the input for a problem, given a year and day.
 func fetchInput(year Year, day Day) string {
+	log.Println("Fetching input")
 	url := fmt.Sprintf("%s/input", baseUrl(year, day))
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		log.Fatalf("Failed to create request %s", err)
 	}
-	authenticate(request)
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -119,16 +119,30 @@ func fetchInput(year Year, day Day) string {
 	return string(body)
 }
 
-func authenticate(request *http.Request) {
+// Create the base URL for a problem.
+func baseUrl(year Year, day Day) string {
+	return fmt.Sprintf("https://adventofcode.com/%d/day/%d", year, day)
+}
+
+type AddHeaderTransport struct {
+	T http.RoundTripper
+}
+
+func (adt *AddHeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Add("User-Agent", "github.com/OliverFlecke/advent-of-code-go by oliverfl@live.dk")
+
 	token, has_token := os.LookupEnv(AOC_TOKEN_NAME)
 	if !has_token {
 		log.Panicf("Missing `%s` in environment", AOC_TOKEN_NAME)
 	}
 
-	request.AddCookie(&http.Cookie{Name: "session", Value: token})
+	req.AddCookie(&http.Cookie{Name: "session", Value: token})
+	return adt.T.RoundTrip(req)
 }
 
-// Create the base URL for a problem.
-func baseUrl(year Year, day Day) string {
-	return fmt.Sprintf("https://adventofcode.com/%d/day/%d", year, day)
+func newAddHeaderTransport(T http.RoundTripper) *AddHeaderTransport {
+	if T == nil {
+		T = http.DefaultTransport
+	}
+	return &AddHeaderTransport{T}
 }
