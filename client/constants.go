@@ -57,3 +57,18 @@ const (
 	Incorrect
 	TooRecent
 )
+
+func (e SubmissionResult) String() string {
+	switch e {
+	case Correct:
+		return "Correct"
+	case AlreadyCompleted:
+		return "AlreadyCompleted"
+	case Incorrect:
+		return "Incorrect"
+	case TooRecent:
+		return "Too recent"
+	default:
+		return "Unknown"
+	}
+}
