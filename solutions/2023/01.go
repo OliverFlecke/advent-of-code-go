@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/dlclark/regexp2"
 	aoc "github.com/oliverflecke/advent-of-code-go/client"
 )
 
@@ -44,7 +44,7 @@ func main() {
 
 	// aoc.SubmitAnswer(aoc.Y2023, aoc.Day01, aoc.A, fmt.Sprintf("%d", sum))
 
-	// testInput := `two1nine
+	// 	testInput := `two1nine
 	// eightwothree
 	// abcone2threexyz
 	// xtwone3four
@@ -52,30 +52,36 @@ func main() {
 	// zoneight234
 	// 7pqrstsixteen
 	// eighthree`
-	// lines2 := strings.Split(testInput, "\n")
+	// 	lines2 := strings.Split(testInput, "\n")
 
-	re, _ := regexp.Compile("(0|1|2|3|4|5|6|7|8|9|one|two|three|four|five|six|seven|eight|nine)")
-	reRev, _ := regexp.Compile("(0|1|2|3|4|5|6|7|8|9|eno|owt|eerht|ruof|evif|xis|neves|thgie|enin)")
+	re2 := regexp2.MustCompile(`(?=(1|2|3|4|5|6|7|8|9|one|two|three|four|five|six|seven|eight|nine))`, 0)
 
 	var answerB = 0
 	for _, line := range lines {
 		if line == "" {
 			continue
 		}
-		first := toDigit(re.FindString(line))
-		last := toDigit(Reverse(reRev.FindString(Reverse(line))))
-
-		// fmt.Printf("Line: %s. Results %s other %s", line, result, other)
+		other := regexp2FindAllString(re2, line)
+		first := toDigit(other[0])
+		last := toDigit(other[len(other)-1])
 
 		answerB += first*10 + last
-		// fmt.Printf(" - %d %d - sum %d\n", first, last, answerB)
-
 	}
 
 	fmt.Printf("Answer B: %d\n", answerB)
 	// isBCorrect := aoc.SubmitAnswer(aoc.Y2023, aoc.Day01, aoc.B, fmt.Sprintf("%d", answerB))
 	// fmt.Printf("Answer for B was: %s\n", isBCorrect)
 
+}
+
+func regexp2FindAllString(re *regexp2.Regexp, s string) []string {
+	var matches []string
+	m, _ := re.FindStringMatch(s)
+	for m != nil {
+		matches = append(matches, m.Groups()[1].String())
+		m, _ = re.FindNextMatch(m)
+	}
+	return matches
 }
 
 func toDigit(value string) int {
